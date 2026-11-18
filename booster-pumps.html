@@ -61,6 +61,35 @@
   .flow input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 40px; height: 40px; margin-top: -12px; border-radius: 50%; background: #fff; border: 4px solid #0288d1; box-shadow: 0 2px 8px rgba(0,0,0,.3); }
   .flow input[type=range]::-moz-range-thumb { width: 32px; height: 32px; border-radius: 50%; background: #fff; border: 4px solid #0288d1; box-shadow: 0 2px 8px rgba(0,0,0,.3); }
   .flow .fscale { display: flex; justify-content: space-between; font-size: 16px; font-weight: 700; color: #5a6875; }
+  .storybtn {
+    position: fixed; top: 16px; left: 16px; z-index: 6; padding: 14px 22px; border-radius: 14px;
+    border: 2px solid #0288d1; background: #0288d1; color: #fff; font: 800 18px system-ui, sans-serif;
+    letter-spacing: .04em; cursor: pointer; box-shadow: 0 10px 28px rgba(0,0,0,.4);
+  }
+  .storybtn:hover { background: #0277bd; }
+  .story {
+    position: fixed; top: 16px; left: 50%; transform: translateX(-50%); z-index: 6;
+    width: min(760px, calc(100vw - 32px)); padding: 18px 22px 16px; border-radius: 18px;
+    background: #f5f7fa; color: #17202a; border: 2px solid #d5dde5; box-shadow: 0 14px 40px rgba(0,0,0,.45);
+  }
+  .story[hidden] { display: none; }
+  .story .s-top { display: flex; justify-content: space-between; align-items: center; }
+  .story .s-chap { font: 800 13px system-ui, sans-serif; letter-spacing: .12em; padding: 4px 12px; border-radius: 99px; background: #0288d1; color: #fff; }
+  .story .s-chap.fixed { background: #f7941d; }
+  .story .s-chap.sum { background: #2db34a; }
+  .story .s-step { font: 700 14px system-ui, sans-serif; color: #5a6875; }
+  .story h2 { margin: 10px 0 6px; font-size: 26px; line-height: 1.2; }
+  .story p { margin: 0; font-size: 17px; line-height: 1.5; color: #2c3a47; }
+  .story .s-live { margin-top: 10px; padding: 8px 12px; border-radius: 10px; background: #e4e9ef; font: 600 14px system-ui, sans-serif; color: #17202a; font-variant-numeric: tabular-nums; }
+  .story .s-live b { color: #0277bd; }
+  .story .s-prog { height: 6px; border-radius: 3px; background: #d5dde5; margin-top: 12px; overflow: hidden; }
+  .story .s-prog i { display: block; height: 100%; width: 0; background: #0288d1; transition: width .15s linear; }
+  .story .s-ctl { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+  .story .s-ctl .s-sp { flex: 1; }
+  .story .s-ctl button { padding: 9px 14px; border-radius: 10px; border: 2px solid #c3ccd6; background: #e4e9ef; color: #17202a; font: 700 15px system-ui, sans-serif; cursor: pointer; }
+  .story .s-ctl button:hover { border-color: #0288d1; background: #d8e6f2; }
+  #panel.locked .press { pointer-events: none; }
+  #panel.locked .press::before { content: "Story mode is driving the controls"; display: block; margin: -6px 0 10px; font: 700 15px system-ui, sans-serif; color: #0277bd; text-align: center; }
   .hint { position: fixed; bottom: 12px; left: 16px; color: var(--muted); font-size: 12px; z-index: 5; }
   .label {
     font: 600 11px system-ui, sans-serif; letter-spacing: .08em; color: #dff4ff;
@@ -141,6 +170,26 @@
   </div>
 </div>
 <div class="hint">Drag to orbit · scroll to zoom · right-drag to pan</div>
+
+<button id="storyBtn" class="storybtn">▶ Story mode</button>
+<div id="story" class="story" hidden>
+  <div class="s-top">
+    <span id="sChap" class="s-chap">VFD OPERATION</span>
+    <span id="sStep" class="s-step">1 / 14</span>
+  </div>
+  <h2 id="sTitle"></h2>
+  <p id="sText"></p>
+  <div id="sLive" class="s-live"></div>
+  <div class="s-prog"><i id="sProg"></i></div>
+  <div class="s-ctl">
+    <button id="sPrev" title="Previous step">◀ Prev</button>
+    <button id="sPlay" title="Pause / play">❚❚ Pause</button>
+    <button id="sNext" title="Next step">Next ▶</button>
+    <button id="sSpeed" title="Story speed">2×</button>
+    <span class="s-sp"></span>
+    <button id="sExit" title="Exit story mode">✕ Exit</button>
+  </div>
+</div>
 
 <script type="module">
 import * as THREE from 'three';
@@ -689,10 +738,11 @@ const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _pos = new THREE.Ve
 
 // ---------- UI ----------
 // control mode switch: VFD cascade / no VFD (on-off)
-document.querySelectorAll('.modesw button').forEach((b) => b.addEventListener('click', () => {
-  document.querySelectorAll('.modesw button').forEach((x) => x.classList.toggle('active', x === b));
-  setControlMode(b.dataset.c);
-}));
+function setModeUI(c) {
+  document.querySelectorAll('.modesw button').forEach((x) => x.classList.toggle('active', x.dataset.c === c));
+  setControlMode(c);
+}
+document.querySelectorAll('.modesw button').forEach((b) => b.addEventListener('click', () => setModeUI(b.dataset.c)));
 
 // flow slider = tap opening: 0–10 LPS of demand at the outlet
 const FLOW_MAX = 8;
@@ -706,6 +756,7 @@ const FLOW_MAX = 8;
   };
   el.addEventListener('input', apply);
   apply();
+  var setDemandUI = (v) => { el.value = v; apply(); };
 }
 
 // ---------- pressure set point gauge (0–5 bar) ----------
@@ -771,6 +822,157 @@ function updatePressureUI() {
   if (over) w.textContent = `⚠ Demand above capacity: max at ${setPoint.toFixed(1)} bar is ${cap.toFixed(2)} LPS (${Math.round(cap * 3600)} LPH)`;
   document.getElementById('flowact').innerHTML = `Delivered: <b>${sim.qOut.toFixed(2)} LPS · ${Math.round(sim.qOut * 3600)} LPH</b>`;
 }
+
+// ---------- story mode: guided walkthrough of VFD and no-VFD operation ----------
+const VIEWS = {
+  overview: { pos: [-9.5, 5.8, 10.5], tgt: [-1.0, 1.3, 0.4] },
+  tank:     { pos: [-9.8, 4.2, 5.2],  tgt: [-4.6, 1.6, 0.2] },
+  pumps:    { pos: [-1.5, 4.6, 7.8],  tgt: [0.0, 1.5, 0.2] },
+  displays: { pos: [0.5, 5.2, 9.5],   tgt: [0.0, 2.6, 0.0] },
+};
+const off = (i) => sim.mode[i] === 'off';
+const STEPS = [
+  { chap: 'VFD OPERATION', view: 'overview', mode: 'vfd', reset: true, demand: 0, min: 8,
+    title: 'The booster set at rest',
+    text: 'Three VB60-FH3B multistage pumps run in parallel from one suction header into one discharge header, with a pressure tank holding 50 litres. The set point is 4.0 bar. Every tap is closed, so the line sits at 4 bar with no flow and all three pumps are off.' },
+  { chap: 'VFD OPERATION', view: 'tank', demand: 0.5, min: 4, until: () => !off(0), after: 1.5, max: 30,
+    title: 'A tap opens: the tank supplies first',
+    text: 'The first water comes from the pressure tank, not the pumps. As the tank pushes water out, its air cushion expands and the pressure starts to fall. Watch the water move in the tank line.' },
+  { chap: 'VFD OPERATION', view: 'displays', min: 10, until: () => sim.P > 3.97, max: 35,
+    title: 'At 3.9 bar, P1 starts on the VFD',
+    text: 'The controller starts P1 at 10% and ramps it up gently. To make any water at all against 4 bar, the pump needs about 90% speed (pressure rises with speed squared), so the pressure keeps dipping until the ramp gets there. P1 then refills the tank and the pressure climbs back.' },
+  { chap: 'VFD OPERATION', view: 'overview', min: 9,
+    title: 'Holding exactly 4 bar',
+    text: 'The VFD now trims P1’s speed (about 96% here) so the pumps supply exactly what the tap draws. The pressure stays on the set point, there are no on/off cycles and no pressure swings.' },
+  { chap: 'VFD OPERATION', view: 'displays', demand: [0.5, 1.5, 5], until: () => !off(1), after: 9, max: 45,
+    title: 'Demand rises: P1 hits 100%, P2 takes the VFD',
+    text: 'P1 reaches full speed and the pressure is still falling. P1 switches to DIRECT (fixed 100%) and the VFD moves to P2, which ramps up from 10% until the pressure is back on 4 bar.' },
+  { chap: 'VFD OPERATION', view: 'displays', demand: [1.5, 2.4, 5], until: () => !off(2), after: 11, max: 45,
+    title: 'Peak demand: all three pumps',
+    text: 'At 2.4 LPS, P2 reaches 100% too and goes DIRECT. P3 gets the VFD and trims the last bit of flow. At 4 bar the whole set tops out at about 2.5 LPS (9,000 LPH): the pump curve drops steeply this close to its shut-off head.' },
+  { chap: 'VFD OPERATION', view: 'displays', demand: [2.4, 1.0, 6], until: () => off(2), after: 9, max: 50,
+    title: 'Demand falls: pumps step out in reverse',
+    text: 'With less water drawn, the VFD pump slows down. Once it reaches minimum speed and the pressure is still above set point, it stops, and the VFD hands back to the previous pump (P3 off, P2 back on the VFD).' },
+  { chap: 'VFD OPERATION', view: 'tank', demand: 0, until: () => off(0) && off(1) && off(2), after: 4, max: 50,
+    title: 'Tap closes: the tank charges, then all pumps stop',
+    text: 'With nowhere else to go, the pump output goes into the tank and compresses its air cushion. When the drive is at minimum speed and the pressure holds, the controller detects no flow and switches the last pump off. The tank keeps the line pressurised.' },
+  { chap: 'NO-VFD OPERATION', view: 'overview', mode: 'fixed', demand: 0, min: 8,
+    title: 'Same pumps, no VFD',
+    text: 'Now the set runs like a classic pressure-switch booster. Each pump is either OFF or DIRECT at 100%, with no speed control. Pumps start at 3.9 bar, the next pump is added below 3.6 bar, and pumps stop at 4.3 bar.' },
+  { chap: 'NO-VFD OPERATION', view: 'displays', demand: 0.5, until: () => !off(0), after: 22, max: 50,
+    title: 'A tap opens: P1 starts at full speed',
+    text: 'Once the tank has pulled the pressure down to 3.9 bar, P1 starts straight at 100%. At full speed it delivers more than the tap draws, so the pressure keeps climbing past the 4 bar set point while the surplus fills the tank. Without a drive there is no way to match the demand.' },
+  { chap: 'NO-VFD OPERATION', view: 'displays', demand: [0.5, 1.5, 4], until: () => !off(1), after: 8, max: 100,
+    title: 'Demand rises: the pressure sags before P2 starts',
+    text: 'One pump is no longer enough. The tank drains and the pressure has to fall below 3.6 bar before the pressure switch brings in P2, also at 100%.' },
+  { chap: 'NO-VFD OPERATION', view: 'overview', demand: 2.4, min: 16,
+    title: 'Peak demand: pressure settles below the set point',
+    text: 'At 2.4 LPS, P1 and P2 at full speed settle at about 3.7 bar. That is below the set point, but not low enough to start P3. Users get lower and less steady pressure than with the VFD.' },
+  { chap: 'NO-VFD OPERATION', view: 'tank', demand: 0, until: () => off(0) && off(1) && off(2), after: 4, max: 100,
+    title: 'Tap closes: pumps stop one by one at 4.3 bar',
+    text: 'The surplus charges the tank until the pressure hits the 4.3 bar cut-out. The last pump started stops first (P2, then P1). The line rests above the set point and will drift back down before the next start.' },
+  { chap: 'SUMMARY', view: 'overview', min: 1e9,
+    title: 'VFD vs. no VFD',
+    text: 'VFD: steady 4.0 bar at any demand, soft starts, pumps slow down instead of cycling, and less energy at part load. No VFD: pressure swings between about 3.6 and 4.3 bar, every start is a full-speed hard start, and part-load demand causes overshoot and on/off cycling. Press Exit to take over the controls, or Prev to replay a step.' },
+];
+
+const story = { active: false, paused: false, speed: 2, i: 0, t: 0, ready: -1, cam: null };
+const $ = (id) => document.getElementById(id);
+
+function resetSim() {
+  Object.assign(sim, { P: setPoint, dP: 0, qOut: 0, qTank: 0, qPumps: 0, lead: -1, upT: 0, downT: 0, noFlowT: 0, lock: 0 });
+  for (let i = 0; i < 3; i++) { sim.q[i] = 0; sim.speed[i] = 0; sim.mode[i] = 'off'; pumps[i].rpm = 0; }
+}
+function flyTo(name) {
+  const v = VIEWS[name];
+  story.cam = { t: 0, p0: camera.position.clone(), t0: controls.target.clone(), p1: V(...v.pos), t1: V(...v.tgt) };
+}
+function enterStep(i) {
+  story.i = clamp(i, 0, STEPS.length - 1);
+  story.t = 0; story.ready = -1;
+  const st = STEPS[story.i];
+  if (st.mode) setModeUI(st.mode);
+  if (st.reset) { setSetPoint(4.0); resetSim(); }
+  if (typeof st.demand === 'number') setDemandUI(st.demand);
+  if (Array.isArray(st.demand)) setDemandUI(st.demand[0]);
+  if (st.view) flyTo(st.view);
+  const chap = $('sChap');
+  chap.textContent = st.chap;
+  chap.className = 's-chap' + (st.chap.startsWith('NO') ? ' fixed' : st.chap === 'SUMMARY' ? ' sum' : '');
+  $('sStep').textContent = `${story.i + 1} / ${STEPS.length}`;
+  $('sTitle').textContent = st.title;
+  $('sText').textContent = st.text;
+}
+// replaying an earlier step: rebuild the plant state by running the script up to it, off-screen
+function jumpTo(target) {
+  const keepView = story.cam;
+  setModeUI('vfd'); setSetPoint(4.0); resetSim();
+  for (let i = 0; i < target; i++) {
+    enterStep(i);
+    for (let k = 0; k < 200 * 60 && !storyTick(0.01, true); k++) simStep(0.01);
+  }
+  story.cam = keepView;
+  enterStep(target);
+}
+// advances the current step; returns true when the step is finished
+function storyTick(h, silent) {
+  const st = STEPS[story.i];
+  story.t += h;
+  if (Array.isArray(st.demand)) {
+    const [a, b, d] = st.demand;
+    const v = a + (b - a) * Math.min(1, story.t / d);
+    if (Math.abs(v - sim.demand) > 1e-4) setDemandUI(Math.round(v * 100) / 100);
+  }
+  if (st.until && story.ready < 0 && story.t >= (st.min || 0) && st.until()) story.ready = story.t;
+  let done;
+  if (st.until) done = (story.ready >= 0 && story.t >= story.ready + (st.after || 0)) || story.t >= (st.max || 60);
+  else done = story.t >= st.min;
+  if (!silent) {
+    const total = st.until ? (story.ready >= 0 ? story.ready + (st.after || 0) : st.max || 60) : st.min;
+    $('sProg').style.width = (st.min >= 1e9 ? 100 : Math.min(100, (story.t / total) * 100)) + '%';
+  }
+  return done;
+}
+function storyUpdate(h) {
+  if (!story.active || h <= 0) return;
+  if (storyTick(h, false) && story.i < STEPS.length - 1) enterStep(story.i + 1);
+}
+function updateStoryLive() {
+  if (!story.active) return;
+  const pumpTxt = pumps.map((_, i) => {
+    const m = sim.mode[i];
+    return `P${i + 1} <b>${m === 'off' ? 'OFF' : (m === 'vfd' ? 'VFD ' : 'DIRECT ') + Math.round(sim.speed[i] * 100) + '%'}</b>`;
+  }).join(' · ');
+  $('sLive').innerHTML = `Pressure <b>${sim.P.toFixed(2)} bar</b> · Tap <b>${sim.qOut.toFixed(2)} LPS</b> · ${pumpTxt}`;
+}
+function startStory() {
+  story.active = true; story.paused = false;
+  $('story').hidden = false; $('storyBtn').hidden = true;
+  $('panel').classList.add('locked');
+  $('sPlay').textContent = '❚❚ Pause';
+  enterStep(0);
+}
+function exitStory() {
+  story.active = false; story.cam = null;
+  $('story').hidden = true; $('storyBtn').hidden = false;
+  $('panel').classList.remove('locked');
+}
+$('storyBtn').addEventListener('click', startStory);
+$('sExit').addEventListener('click', exitStory);
+$('sNext').addEventListener('click', () => {
+  // fast-forward the current step's physics so the next step starts from a consistent state
+  for (let k = 0; k < 200 * 60 && !storyTick(0.01, true); k++) simStep(0.01);
+  enterStep(story.i + 1);
+});
+$('sPrev').addEventListener('click', () => jumpTo(Math.max(0, story.i - 1)));
+$('sPlay').addEventListener('click', () => {
+  story.paused = !story.paused;
+  $('sPlay').textContent = story.paused ? '▶ Play' : '❚❚ Pause';
+});
+$('sSpeed').addEventListener('click', () => {
+  story.speed = story.speed === 1 ? 2 : story.speed === 2 ? 4 : 1;
+  $('sSpeed').textContent = story.speed + '×';
+});
 
 // ---------- loop ----------
 const clock = new THREE.Clock();
@@ -872,7 +1074,16 @@ function animate() {
   const dt = Math.min(clock.getDelta(), 0.05);
 
   // run the controller/hydraulics in small fixed steps
-  for (let k = 0, n = Math.ceil(dt / 0.01); k < n; k++) simStep(dt / n);
+  const simDt = story.active ? (story.paused ? 0 : dt * story.speed) : dt;
+  for (let k = 0, n = Math.ceil(simDt / 0.01); k < n; k++) { simStep(simDt / n); storyUpdate(simDt / n); }
+  if (story.cam) {
+    const c = story.cam;
+    c.t = Math.min(1, c.t + dt / 2.2);
+    const e = c.t * c.t * (3 - 2 * c.t);
+    camera.position.lerpVectors(c.p0, c.p1, e);
+    controls.target.lerpVectors(c.t0, c.t1, e);
+    if (c.t >= 1) story.cam = null;
+  }
 
   pumps.forEach((p, i) => {
     p.rpm += (sim.speed[i] - p.rpm) * Math.min(1, dt * 3);
@@ -881,7 +1092,7 @@ function animate() {
     p.fan.rotation.z += w;
   });
   uiTimer -= dt;
-  if (uiTimer <= 0) { uiTimer = 0.12; updateDisplays(); updatePressureUI(); }
+  if (uiTimer <= 0) { uiTimer = 0.12; updateDisplays(); updatePressureUI(); updateStoryLive(); }
 
   for (const pp of pipes) pp.tex.offset.x -= (pp.flow() * dt) / TILE;
 
