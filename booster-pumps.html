@@ -1,0 +1,879 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Booster Pump Set</title>
+<style>
+  :root {
+    --bg1: #0f1720;
+    --bg2: #1d2a38;
+    --panel: rgba(14, 20, 28, 0.82);
+    --line: rgba(255, 255, 255, 0.1);
+    --text: #e6edf3;
+    --muted: #8b9bab;
+    --accent: #4fc3f7;
+    --on: #3ddc84;
+    --off: #ff5f56;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; overflow: hidden; }
+  body {
+    background: radial-gradient(ellipse at 50% 30%, var(--bg2), var(--bg1) 75%);
+    color: var(--text);
+    font: 14px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  #app { position: fixed; inset: 0; }
+  #panel {
+    position: fixed; bottom: 16px; right: 16px; width: 540px; max-width: calc((100vw - 32px) / 0.85);
+    max-height: calc((100vh - 32px) / 0.85); overflow-y: auto; z-index: 5;
+    transform: scale(0.85); transform-origin: bottom right;
+  }
+  .press { padding: 20px 24px 18px; border-radius: 18px; background: #f5f7fa; border: 2px solid #d5dde5;
+           box-shadow: 0 14px 40px rgba(0,0,0,.45); color: #17202a; }
+  .press .ttl { display: flex; justify-content: space-between; align-items: baseline; font-size: 24px; font-weight: 800; margin-bottom: 4px; }
+  .press .ttl span + span { font-size: 18px; font-weight: 600; color: #5a6875; }
+  .press svg { width: 100%; height: auto; display: block; cursor: pointer; touch-action: none; user-select: none; }
+  .press .tick { fill: #17202a; font: 800 12px system-ui, sans-serif; text-anchor: middle; dominant-baseline: middle; }
+  .press .unit { fill: #5a6875; font: 700 10px system-ui, sans-serif; text-anchor: middle; }
+  .press .row { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-top: 6px; }
+  .press .sp { font-size: 48px; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .press .sp small { font-size: 24px; color: #5a6875; font-weight: 700; }
+  .press button { width: 68px; height: 68px; border-radius: 14px; border: 2px solid #c3ccd6; background: #e4e9ef;
+                  color: #17202a; font-size: 38px; font-weight: 700; line-height: 1; cursor: pointer; }
+  .press button:hover { border-color: #0288d1; background: #d8e6f2; }
+  .press button:active { transform: translateY(1px); }
+  .press .act { margin-top: 12px; font-size: 22px; color: #5a6875; text-align: center; font-variant-numeric: tabular-nums; }
+  .press .act b { color: #0277bd; }
+  .press .warn { margin-top: 10px; padding: 8px 12px; border-radius: 10px; background: #fff3e0; border: 2px solid #f7941d; color: #8a4b00; font-size: 18px; font-weight: 700; text-align: center; }
+  .flow { margin-top: 18px; padding-top: 16px; border-top: 2px solid #d5dde5; }
+  .press .flow .ttl .fv { font-size: 40px; font-weight: 800; color: #17202a; font-variant-numeric: tabular-nums; }
+  .press .flow .ttl .fv small { font-size: 22px; color: #5a6875; font-weight: 700; }
+  .flow input[type=range] { -webkit-appearance: none; appearance: none; width: 100%; height: 44px; background: transparent; cursor: pointer; margin: 4px 0 0; }
+  .flow input[type=range]::-webkit-slider-runnable-track { height: 16px; border-radius: 8px; background: linear-gradient(90deg, #0288d1 var(--fill, 50%), #d5dde5 var(--fill, 50%)); }
+  .flow input[type=range]::-moz-range-track { height: 16px; border-radius: 8px; background: #d5dde5; }
+  .flow input[type=range]::-moz-range-progress { height: 16px; border-radius: 8px; background: #0288d1; }
+  .flow input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 40px; height: 40px; margin-top: -12px; border-radius: 50%; background: #fff; border: 4px solid #0288d1; box-shadow: 0 2px 8px rgba(0,0,0,.3); }
+  .flow input[type=range]::-moz-range-thumb { width: 32px; height: 32px; border-radius: 50%; background: #fff; border: 4px solid #0288d1; box-shadow: 0 2px 8px rgba(0,0,0,.3); }
+  .flow .fscale { display: flex; justify-content: space-between; font-size: 16px; font-weight: 700; color: #5a6875; }
+  .hint { position: fixed; bottom: 12px; left: 16px; color: var(--muted); font-size: 12px; z-index: 5; }
+  .label {
+    font: 600 11px system-ui, sans-serif; letter-spacing: .08em; color: #dff4ff;
+    background: rgba(10, 18, 26, .75); border: 1px solid rgba(79,195,247,.45);
+    padding: 3px 8px; border-radius: 6px; white-space: nowrap;
+  }
+  .disp {
+    position: relative; min-width: 170px; padding: 12px 18px 14px; border-radius: 14px; text-align: center;
+    background: rgba(8, 14, 20, .88); border: 2px solid rgba(61,220,132,.6);
+    box-shadow: 0 10px 28px rgba(0,0,0,.4); font: 14px/1.2 system-ui, sans-serif; color: #e6f6ff;
+    font-variant-numeric: tabular-nums;
+  }
+  .disp::after {
+    content: ""; position: absolute; left: 50%; bottom: -9px; width: 16px; height: 16px; margin-left: -8px;
+    background: rgba(8, 14, 20, .88); border-right: 2px solid; border-bottom: 2px solid; border-color: inherit;
+    transform: rotate(45deg);
+  }
+  .disp .st { display: inline-block; font-size: 15px; font-weight: 800; letter-spacing: .1em; padding: 4px 14px; border-radius: 99px; }
+  .disp .st.run  { color: #0b2a17; background: #3ddc84; }
+  .disp .st.stop { color: #fff; background: #ff5f56; }
+  .disp .pct { display: block; font-size: 40px; font-weight: 800; margin-top: 6px; }
+  .disp { display: flex; align-items: center; gap: 14px; text-align: left; }
+  .disp .vfd { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+  .disp .vfd svg { width: 44px; height: 62px; display: block; filter: drop-shadow(0 2px 3px rgba(0,0,0,.5)); }
+  .disp .vfd span { font-size: 10px; font-weight: 800; letter-spacing: .14em; color: #8fb8d6; }
+  .disp .info { display: flex; flex-direction: column; align-items: center; }
+  .disp.off .vfd .runbtn { fill: #4a5560; }
+  .disp.dol .vfd svg, .disp.off .vfd svg { opacity: .35; filter: grayscale(1); }
+  .disp.dol .vfd span, .disp.off .vfd span { color: #6b7885; }
+  .disp.off { border-color: rgba(255,95,86,.6); }
+  .disp.off .pct { color: #8b9bab; }
+  @media (max-width: 520px) {
+    #panel { width: auto; left: 16px; padding: 12px; }
+    .hint { display: none; }
+  }
+</style>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<div id="app"></div>
+
+<div id="panel">
+  <div class="press">
+    <div class="ttl"><span>Pressure set point</span></div>
+    <svg id="pgauge" viewBox="0 0 200 118" aria-label="Pressure set point gauge">
+      <g id="pseg"></g>
+      <g id="pticks"></g>
+      <text class="unit" x="100" y="80">bar</text>
+      <polygon id="pact" points="100,28 105,40 95,40" fill="#0288d1" stroke="#fff" stroke-width="1"></polygon>
+      <g id="pneedle">
+        <polygon points="95,104 105,104 100,32" fill="#111"></polygon>
+      </g>
+      <circle cx="100" cy="104" r="9" fill="#111"></circle>
+      <circle cx="100" cy="104" r="5" fill="#fff"></circle>
+    </svg>
+    <div class="row">
+      <button id="pminus" aria-label="Decrease set point">−</button>
+      <span class="sp"><span id="psp">3.0</span> <small>bar</small></span>
+      <button id="pplus" aria-label="Increase set point">+</button>
+    </div>
+    <div class="act">Actual pressure: <b id="pactv">4.00 bar</b></div>
+    <div class="warn" id="capwarn" hidden></div>
+    <div class="flow">
+      <div class="ttl"><span>Flow</span><span class="fv"><span id="fval">0.0</span> <small>LPS</small></span></div>
+      <input id="flow" type="range" min="0" max="8" step="0.1" value="0" aria-label="Flow in litres per second">
+      <div class="fscale"><span>0</span><span>2</span><span>4</span><span>6</span><span>8 LPS</span></div>
+      <div class="act" id="flowact">Delivered: <b>0.00 LPS · 0 LPH</b></div>
+    </div>
+  </div>
+</div>
+<div class="hint">Drag to orbit · scroll to zoom · right-drag to pan</div>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+
+// ---------- renderer / scene ----------
+const app = document.getElementById('app');
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+app.appendChild(renderer.domElement);
+
+const labelRenderer = new CSS2DRenderer();
+labelRenderer.setSize(innerWidth, innerHeight);
+Object.assign(labelRenderer.domElement.style, { position: 'absolute', top: '0', left: '0', pointerEvents: 'none' });
+app.appendChild(labelRenderer.domElement);
+
+const scene = new THREE.Scene();
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+
+const camera = new THREE.PerspectiveCamera(40, innerWidth / innerHeight, 0.1, 200);
+camera.position.set(-9.5, 5.8, 10.5);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(-1.0, 1.3, 0.4);
+controls.enableDamping = true;
+controls.maxPolarAngle = Math.PI * 0.48;
+controls.minDistance = 3;
+controls.maxDistance = 30;
+
+scene.add(new THREE.HemisphereLight(0xcfe8ff, 0x1a1f26, 0.6));
+const sun = new THREE.DirectionalLight(0xffffff, 2.2);
+sun.position.set(6, 12, 8);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+Object.assign(sun.shadow.camera, { left: -12, right: 12, top: 12, bottom: -12, near: 1, far: 40 });
+sun.shadow.bias = -0.0004;
+scene.add(sun);
+
+// floor
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(80, 80),
+  new THREE.MeshStandardMaterial({ color: 0x1b222b, roughness: 0.95 }));
+floor.rotation.x = -Math.PI / 2;
+floor.receiveShadow = true;
+scene.add(floor);
+const grid = new THREE.GridHelper(40, 40, 0x2c3947, 0x232d38);
+grid.position.y = 0.002;
+scene.add(grid);
+
+// ---------- materials ----------
+const M = {
+  black:  new THREE.MeshStandardMaterial({ color: 0x17191c, roughness: 0.45, metalness: 0.25 }),
+  cream:  new THREE.MeshStandardMaterial({ color: 0xe8e1cc, roughness: 0.5, metalness: 0.05 }),
+  steel:  new THREE.MeshStandardMaterial({ color: 0xc8cdd2, roughness: 0.22, metalness: 1.0 }),
+  casing: new THREE.MeshStandardMaterial({ color: 0xd2d7dc, roughness: 0.18, metalness: 1.0 }),
+  bronze: new THREE.MeshStandardMaterial({ color: 0xd9a441, roughness: 0.3, metalness: 0.9 }),
+  frame:  new THREE.MeshStandardMaterial({ color: 0x34506b, roughness: 0.55, metalness: 0.3 }),
+  flange: new THREE.MeshStandardMaterial({ color: 0x8b949e, roughness: 0.35, metalness: 0.7 }),
+  white:  new THREE.MeshStandardMaterial({ color: 0xf4f4f4, roughness: 0.4 }),
+  red:    new THREE.MeshStandardMaterial({ color: 0xd32f2f, roughness: 0.4 }),
+  brass:  new THREE.MeshStandardMaterial({ color: 0xc99a3c, roughness: 0.28, metalness: 1.0 }),
+  slot:   new THREE.MeshStandardMaterial({ color: 0x050506, roughness: 0.8 }),
+  glass:  new THREE.MeshPhysicalMaterial({
+    color: 0xe6f6ff, roughness: 0.04, metalness: 0, transparent: true, opacity: 0.2,
+    clearcoat: 1, clearcoatRoughness: 0.03, depthWrite: false, side: THREE.DoubleSide,
+  }),
+};
+
+function shadow(m) { m.castShadow = true; m.receiveShadow = true; return m; }
+
+// cylinder along Z from z0 (radius r0) to z1 (radius r1)
+function cylZ(r0, r1, z0, z1, mat, seg = 48, open = false) {
+  const g = new THREE.CylinderGeometry(r1, r0, z1 - z0, seg, 1, open);
+  g.rotateX(Math.PI / 2);
+  const m = shadow(new THREE.Mesh(g, mat));
+  m.position.z = (z0 + z1) / 2;
+  return m;
+}
+// rounded-rectangle block along Z (w x h section) from z0 to z1
+function roundBoxZ(w, h, z0, z1, r, mat) {
+  const sh = new THREE.Shape();
+  const x = -w / 2, y = -h / 2;
+  sh.moveTo(x + r, y); sh.lineTo(x + w - r, y); sh.quadraticCurveTo(x + w, y, x + w, y + r);
+  sh.lineTo(x + w, y + h - r); sh.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  sh.lineTo(x + r, y + h); sh.quadraticCurveTo(x, y + h, x, y + h - r);
+  sh.lineTo(x, y + r); sh.quadraticCurveTo(x, y, x + r, y);
+  const bev = 0.025;
+  const g = new THREE.ExtrudeGeometry(sh, { depth: z1 - z0 - bev * 2, bevelEnabled: true, bevelThickness: bev, bevelSize: bev, bevelSegments: 3, curveSegments: 12 });
+  g.translate(0, 0, z0 + bev);
+  return shadow(new THREE.Mesh(g, mat));
+}
+function box(w, h, d, mat, x, y, z) {
+  const m = shadow(new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat));
+  m.position.set(x, y, z);
+  return m;
+}
+
+// ---------- layout constants ----------
+const H = 1.0;                       // shaft centre height
+const PUMP_X = [-2.6, 0, 2.6];
+const SUC = { y: 0.45, z: 2.6, r: 0.2, inX: -7.2 };
+const DIS = { y: 2.7, z: -0.02, r: 0.2, outX: 7.6 };
+const BR = 0.12;                      // branch pipe radius
+const SUC_NOZ_Z = 1.8;                // suction pipe end (front of pump)
+const DIS_NOZ_Y = H + 0.74;           // discharge pipe start (top of pump)
+
+// ---------- pump model ----------
+const vaneGeo = new THREE.BoxGeometry(0.2, 0.025, 0.06);
+const finGeo = new THREE.BoxGeometry(0.09, 0.035, 1.08);
+const bladeGeo = new THREE.BoxGeometry(0.42, 0.11, 0.015);
+
+function buildImpeller() {
+  const g = new THREE.Group();
+  g.add(cylZ(0.34, 0.34, -0.012, 0.012, M.bronze, 40));
+  g.add(cylZ(0.08, 0.08, -0.05, 0.06, M.bronze, 24));
+  g.add(cylZ(0.3, 0.14, 0.05, 0.065, M.bronze, 40, true));
+  for (let k = 0; k < 7; k++) {
+    const a = (k / 7) * Math.PI * 2;
+    const v = new THREE.Mesh(vaneGeo, M.bronze);
+    v.position.set(Math.cos(a) * 0.2, Math.sin(a) * 0.2, 0.035);
+    v.rotation.z = a + 0.65;
+    g.add(v);
+  }
+  return g;
+}
+
+// small VFD drive icon shown on each floating display
+const VFD_ICON = `<svg viewBox="0 0 40 56" aria-hidden="true">
+  <rect x="9" y="1" width="22" height="6" rx="1" fill="#2b2f34"/>
+  <circle cx="13" cy="4" r="1.1" fill="#0d0f11"/><circle cx="27" cy="4" r="1.1" fill="#0d0f11"/>
+  <rect x="3" y="6" width="34" height="49" rx="2.5" fill="#3a3f46" stroke="#565d66" stroke-width="0.8"/>
+  <rect x="6" y="10" width="28" height="19" rx="1.5" fill="#1d2126"/>
+  <rect x="8.5" y="12.5" width="14" height="5.5" rx="0.6" fill="#0a0c0e"/>
+  <text x="15.5" y="17.1" font-size="4.6" font-family="monospace" font-weight="700" fill="#ff5a4e" text-anchor="middle">8.8.8.8</text>
+  <circle cx="29" cy="15.5" r="3" fill="#0e1013" stroke="#555" stroke-width="0.5"/>
+  <rect x="8.5" y="20.5" width="4.5" height="3" rx="0.7" fill="#f5d020"/>
+  <rect x="14" y="20.5" width="4.5" height="3" rx="0.7" fill="#4fb3e8"/>
+  <rect x="8.5" y="24.5" width="4.5" height="3" rx="0.7" fill="#f5d020"/>
+  <rect x="14" y="24.5" width="4.5" height="3" rx="0.7" fill="#4fb3e8"/>
+  <rect class="runbtn" x="25.5" y="20.5" width="6" height="3" rx="0.7" fill="#3ddc84"/>
+  <rect x="25.5" y="24.5" width="6" height="3" rx="0.7" fill="#ef4b3f"/>
+  <rect x="7.5" y="37" width="10" height="15" rx="0.5" fill="#15181b"/>
+  <rect x="8.3" y="38" width="8.4" height="1.6" fill="#e0453a"/>
+  <rect x="8.3" y="45" width="8.4" height="1.4" fill="#e0453a"/>
+  <rect x="21.5" y="45" width="11" height="5" rx="0.4" fill="#0d0f11" stroke="#777" stroke-width="0.3"/>
+  <rect x="21" y="38" width="12" height="0.6" fill="#4a5058"/><rect x="21" y="40" width="12" height="0.6" fill="#4a5058"/>
+</svg>`;
+
+function buildPump(x, index) {
+  const root = new THREE.Group();
+  root.position.x = x;
+  const ax = new THREE.Group();
+  ax.position.y = H;
+  root.add(ax);
+  const impellers = [];
+
+  // suction end cover: rounded-square black block + boss + axial suction nozzle
+  ax.add(roundBoxZ(1.0, 1.0, 1.25, 1.5, 0.2, M.black));
+  ax.add(cylZ(0.42, 0.34, 1.5, 1.6, M.black));
+  ax.add(cylZ(0.14, 0.14, 1.58, 1.74, M.black, 32));
+  ax.add(cylZ(0.22, 0.22, 1.72, 1.78, M.black, 32));
+  const plug = cylZ(0.05, 0.05, 1.5, 1.56, M.brass, 6); plug.position.set(0.3, -0.3, 0); ax.add(plug);
+
+  // stage casing: 3 stainless rings, gaskets, 3 impellers inside
+  const STAGES = 3, STAGE_LEN = 1.15 / STAGES;
+  for (let s = 0; s < STAGES; s++) {
+    const z0 = 0.1 + s * STAGE_LEN;
+    ax.add(cylZ(0.45, 0.45, z0, z0 + 0.025, M.black));
+    ax.add(cylZ(0.42, 0.42, z0 + 0.025, z0 + STAGE_LEN, M.casing, 56));
+    const bead = cylZ(0.428, 0.428, z0 + STAGE_LEN * 0.45, z0 + STAGE_LEN * 0.55, M.casing, 56);
+    ax.add(bead);
+    const imp = buildImpeller();
+    imp.position.z = z0 + (STAGE_LEN + 0.025) / 2;
+    ax.add(imp);
+    impellers.push(imp);
+  }
+  ax.add(cylZ(0.04, 0.04, -0.5, 1.3, M.steel, 16));
+
+  // tie rods at the corners of the square end blocks + nuts
+  for (const [cx, cy] of [[0.38, 0.38], [-0.38, 0.38], [0.38, -0.38], [-0.38, -0.38]]) {
+    const rod = cylZ(0.024, 0.024, -0.2, 1.58, M.steel, 12);
+    rod.position.x = cx; rod.position.y = cy; ax.add(rod);
+    for (const z of [-0.19, 1.53]) {
+      const nut = cylZ(0.05, 0.05, z - 0.035, z + 0.035, M.steel, 6);
+      nut.position.x = cx; nut.position.y = cy; ax.add(nut);
+    }
+  }
+
+  // discharge head: rounded-square black block with brass discharge fitting on top
+  ax.add(roundBoxZ(1.0, 1.0, -0.15, 0.1, 0.2, M.black));
+  const hex = shadow(new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.17, 0.12, 6), M.brass));
+  hex.position.set(0, 0.56, DIS.z); ax.add(hex);
+  const noz = shadow(new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.14, 0.1, 32), M.brass));
+  noz.position.set(0, 0.67, DIS.z); ax.add(noz);
+  const nozF = shadow(new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.05, 32), M.brass));
+  nozF.position.set(0, 0.715, DIS.z); ax.add(nozF);
+
+  // lantern bracket + motor
+  ax.add(cylZ(0.56, 0.46, -0.45, -0.15, M.black));
+  ax.add(cylZ(0.6, 0.6, -0.55, -0.45, M.black));
+  ax.add(cylZ(0.55, 0.55, -1.75, -0.55, M.cream, 56));
+  ax.add(cylZ(0.585, 0.585, -1.82, -1.72, M.cream, 56));
+  for (let k = 0; k < 26; k++) {
+    const a = (k / 26) * Math.PI * 2;
+    const fin = shadow(new THREE.Mesh(finGeo, M.cream));
+    fin.position.set(Math.cos(a) * 0.575, Math.sin(a) * 0.575, -1.15);
+    fin.rotation.z = a;
+    ax.add(fin);
+  }
+  // nameplate
+  const plate = box(0.01, 0.2, 0.32, M.steel, 0, 0, -1.15);
+  plate.position.set(-0.63, 0.05, -1.15); ax.add(plate);
+
+  // fan cover with grille and rotating fan
+  const cover = cylZ(0.6, 0.6, -2.15, -1.82, M.black, 48, true);
+  cover.material = M.black.clone(); cover.material.side = THREE.DoubleSide;
+  ax.add(cover);
+  const grille = new THREE.Group();
+  grille.position.z = -2.15;
+  for (const r of [0.14, 0.28, 0.42, 0.57]) {
+    grille.add(shadow(new THREE.Mesh(new THREE.TorusGeometry(r, 0.018, 8, 48), M.black)));
+  }
+  for (let k = 0; k < 8; k++) {
+    const bar = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.03, 0.03), M.black);
+    bar.position.set(Math.cos(k * Math.PI / 4) * 0.3, Math.sin(k * Math.PI / 4) * 0.3, 0);
+    bar.rotation.z = k * Math.PI / 4;
+    grille.add(bar);
+  }
+  grille.add(cylZ(0.08, 0.08, -0.02, 0.02, M.black, 24));
+  ax.add(grille);
+  const fan = new THREE.Group();
+  fan.position.z = -1.98;
+  fan.add(cylZ(0.09, 0.09, -0.04, 0.04, M.black, 24));
+  for (let k = 0; k < 7; k++) {
+    const b = new THREE.Mesh(bladeGeo, M.black);
+    const a = (k / 7) * Math.PI * 2;
+    b.position.set(Math.cos(a) * 0.27, Math.sin(a) * 0.27, 0);
+    b.rotation.set(0.5, 0, a);
+    fan.add(b);
+  }
+  ax.add(fan);
+
+  // terminal box + status LED
+  ax.add(box(0.48, 0.24, 0.5, M.black, 0, 0.64, -1.0));
+  ax.add(box(0.52, 0.05, 0.54, M.black, 0, 0.785, -1.0));
+  const ledMat = new THREE.MeshStandardMaterial({ color: 0x3ddc84, emissive: 0x3ddc84, emissiveIntensity: 2 });
+  const led = new THREE.Mesh(new THREE.SphereGeometry(0.035, 16, 12), ledMat);
+  led.position.set(0.16, 0.82, -0.8);
+  ax.add(led);
+
+  // feet + skid plate
+  root.add(box(1.0, 0.36, 0.3, M.black, 0, 0.37, -1.5));
+  root.add(box(1.0, 0.36, 0.3, M.black, 0, 0.37, -0.85));
+  root.add(box(0.75, 0.42, 0.2, M.black, 0, 0.4, -0.02));
+  root.add(box(0.75, 0.42, 0.18, M.black, 0, 0.4, 1.36));
+  root.add(box(1.5, 0.04, 4.1, M.frame, 0, 0.17, -0.25));
+
+  // floating VFD display above the pump
+  const div = document.createElement('div');
+  div.className = 'disp';
+  div.innerHTML = `<div class="vfd">${VFD_ICON}<span class="mode">VFD</span></div><div class="info"><span class="st run">RUNNING</span><span class="pct">0%</span></div>`;
+  const lab = new CSS2DObject(div);
+  lab.position.set(0, DIS.y + 1.25, -0.4);
+  root.add(lab);
+  const ui = { root: div, st: div.querySelector('.st'), pct: div.querySelector('.pct'), mode: div.querySelector('.mode') };
+
+  scene.add(root);
+  return { on: false, rpm: 0, impellers, fan, ledMat, ui };
+}
+
+const pumps = PUMP_X.map((x, i) => buildPump(x, i));
+
+// skid rails
+scene.add(box(7.4, 0.15, 0.2, M.frame, 0, 0.075, -1.7));
+scene.add(box(7.4, 0.15, 0.2, M.frame, 0, 0.075, 1.2));
+
+// ---------- pipes ----------
+function roundedPath(pts, r) {
+  const path = new THREE.CurvePath();
+  let cur = pts[0].clone();
+  for (let i = 1; i < pts.length - 1; i++) {
+    const A = pts[i - 1], P = pts[i], B = pts[i + 1];
+    const d1 = P.clone().sub(A), d2 = B.clone().sub(P);
+    const l1 = d1.length(), l2 = d2.length();
+    d1.normalize(); d2.normalize();
+    if (d1.dot(d2) > 0.9999) continue;
+    const rr = Math.min(r, l1 * 0.5, l2 * 0.5);
+    const s = P.clone().addScaledVector(d1, -rr);
+    const e = P.clone().addScaledVector(d2, rr);
+    if (cur.distanceTo(s) > 1e-4) path.add(new THREE.LineCurve3(cur.clone(), s));
+    path.add(new THREE.QuadraticBezierCurve3(s, P.clone(), e));
+    cur = e;
+  }
+  path.add(new THREE.LineCurve3(cur, pts[pts.length - 1].clone()));
+  return path;
+}
+
+function makeWaterTexture() {
+  const W = 512, Hh = 128;
+  const c = document.createElement('canvas');
+  c.width = W; c.height = Hh;
+  const g = c.getContext('2d');
+  const grd = g.createLinearGradient(0, 0, 0, Hh);
+  grd.addColorStop(0, '#5e9bd6'); grd.addColorStop(0.5, '#a9d9ff'); grd.addColorStop(1, '#5e9bd6');
+  g.fillStyle = grd; g.fillRect(0, 0, W, Hh);
+  const wrapDraw = (fn) => { for (const dx of [-W, 0, W]) for (const dy of [-Hh, 0, Hh]) fn(dx, dy); };
+  for (let i = 0; i < 80; i++) {
+    const x = Math.random() * W, y = Math.random() * Hh;
+    const w = 30 + Math.random() * 110, h = 1 + Math.random() * 3.5;
+    const a = 0.12 + Math.random() * 0.35;
+    wrapDraw((dx, dy) => {
+      g.fillStyle = `rgba(255,255,255,${a})`;
+      g.beginPath(); g.ellipse(x + dx, y + dy, w / 2, h, 0, 0, Math.PI * 2); g.fill();
+    });
+  }
+  for (let i = 0; i < 45; i++) {
+    const x = Math.random() * W, y = Math.random() * Hh, r = 1.5 + Math.random() * 3.5;
+    wrapDraw((dx, dy) => {
+      g.fillStyle = 'rgba(255,255,255,0.35)';
+      g.strokeStyle = 'rgba(255,255,255,0.85)';
+      g.lineWidth = 1;
+      g.beginPath(); g.arc(x + dx, y + dy, r, 0, Math.PI * 2); g.fill(); g.stroke();
+    });
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = renderer.capabilities.getMaxAnisotropy();
+  return t;
+}
+const baseWater = makeWaterTexture();
+const TILE = 1.2; // world units per texture tile
+
+const pipes = [];
+function makePipe(points, radius, { flow = () => 0, tint = 0x9fe3ff, corner = 0.22, density = 10 } = {}) {
+  const curve = roundedPath(points, corner);
+  const len = curve.getLength();
+  const segs = Math.max(24, Math.ceil(len * 30));
+  const glass = new THREE.Mesh(new THREE.TubeGeometry(curve, segs, radius, 40, false), M.glass);
+  glass.renderOrder = 3;
+  const tex = baseWater.clone();
+  tex.needsUpdate = true;
+  tex.repeat.set(len / TILE, 1);
+  const waterMat = new THREE.MeshStandardMaterial({
+    color: tint, map: tex, emissive: 0x0b4f8a, emissiveMap: tex, emissiveIntensity: 0.55,
+    roughness: 0.15, metalness: 0, transparent: true, opacity: 0.62, depthWrite: false,
+  });
+  const water = new THREE.Mesh(new THREE.TubeGeometry(curve, segs, radius * 0.8, 28, false), waterMat);
+  water.renderOrder = 2;
+  scene.add(water, glass);
+  pipes.push({ tex, curve, len, flow, waterR: radius * 0.8, count: Math.max(8, Math.round(len * density)) });
+  return curve;
+}
+
+const flangeGeoCache = {};
+function flange(pos, dir, r, solid = true) {
+  const key = r.toFixed(3);
+  const geo = flangeGeoCache[key] ||= new THREE.CylinderGeometry(r * 1.55, r * 1.55, 0.07, 40);
+  const m = shadow(new THREE.Mesh(geo, M.flange));
+  m.position.copy(pos);
+  m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.clone().normalize());
+  scene.add(m);
+  // bolts
+  for (let k = 0; k < 6; k++) {
+    const b = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.1, 6), M.steel);
+    const a = k / 6 * Math.PI * 2;
+    b.position.set(Math.cos(a) * r * 1.3, 0, Math.sin(a) * r * 1.3);
+    m.add(b);
+  }
+  return m;
+}
+
+const V = (x, y, z) => new THREE.Vector3(x, y, z);
+const X = V(1, 0, 0), Y = V(0, 1, 0), Z = V(0, 0, 1);
+
+// ---------- hydraulic model / booster controller state ----------
+// VB60-FH3B performance at 100 % speed: total head (m) -> discharge (LPH).
+// From the maker's chart; 9–18 m interpolated, 0 m and shut-off (~49.9 m) extrapolated.
+const CURVE = [[0, 10100], [6, 9500], [9, 9180], [12, 8860], [15, 8540], [18, 8220], [21, 7900], [24, 7400],
+  [27, 6800], [30, 6150], [33, 5800], [36, 5000], [39, 3500], [42, 2700], [47, 1000], [49.9, 0]];
+const M_PER_BAR = 10.2;
+function q100(Hm) {
+  if (Hm <= 0) return CURVE[0][1];
+  for (let i = 1; i < CURVE.length; i++) {
+    const [h1, q1] = CURVE[i];
+    if (Hm <= h1) { const [h0, q0] = CURVE[i - 1]; return q0 + (q1 - q0) * (Hm - h0) / (h1 - h0); }
+  }
+  return 0;
+}
+// affinity laws (Q ∝ n, H ∝ n²): Q(H, n) = n · Q100(H / n²). Returns LPS. Suction assumed at 0 bar.
+function pumpLPS(P, n) {
+  if (n <= 0) return 0;
+  return n * q100((P * M_PER_BAR) / (n * n)) / 3600;
+}
+const KH = 0.26, KB = 0.46;     // animation speed (world units/s) per LPS: headers / branches
+const TANK_L = 80;              // pressure-tank volume (litres)
+const MIN_SPD = 0.10, RAMP_UP = 0.15, RAMP_DN = 0.3, KI = 0.6, KP = 2.5, LOCK = 2.5;
+const sim = {
+  P: 4.0, dP: 0, demand: 0, qOut: 0, qTank: 0, qPumps: 0,
+  q: [0, 0, 0], speed: [0, 0, 0], mode: ['off', 'off', 'off'], lead: -1, upT: 0, downT: 0, noFlowT: 0, lock: 0,
+};
+
+// suction header (inlet on the left, capped on the right)
+const sucEnd = PUMP_X[2] + 0.45;
+makePipe([V(SUC.inX, SUC.y, SUC.z), V(sucEnd, SUC.y, SUC.z)], SUC.r, { tint: 0xa8e6ff, flow: () => sim.qPumps * KH });
+flange(V(SUC.inX, SUC.y, SUC.z), X, SUC.r);
+flange(V(sucEnd, SUC.y, SUC.z), X, SUC.r);
+
+// discharge header (capped on the left, outlet on the right)
+const disStart = PUMP_X[0] - 0.45;
+// left part carries tank flow (towards the tank = -x), right part carries the tap flow to the outlet
+makePipe([V(disStart, DIS.y, DIS.z), V(PUMP_X[0], DIS.y, DIS.z)], DIS.r, { tint: 0x6fb0ff, flow: () => -sim.qTank * KH });
+makePipe([V(PUMP_X[0], DIS.y, DIS.z), V(DIS.outX, DIS.y, DIS.z)], DIS.r, { tint: 0x6fb0ff, flow: () => sim.qOut * KH });
+flange(V(disStart, DIS.y, DIS.z), X, DIS.r);
+
+// ---------- pressure tank (left side, fed from the discharge header's left end) ----------
+const TANK = { x: -5.3, z: DIS.z, r: 0.85, y0: 0.65, y1: 3.24 };
+{
+  const cream = new THREE.MeshStandardMaterial({ color: 0xeee6cf, roughness: 0.32, metalness: 0.1 });
+  const blackDS = M.black.clone(); blackDS.side = THREE.DoubleSide;
+  const g = new THREE.Group();
+  g.position.set(TANK.x, 0, TANK.z);
+  scene.add(g);
+  const body = shadow(new THREE.Mesh(new THREE.CylinderGeometry(TANK.r, TANK.r, TANK.y1 - TANK.y0, 72), cream));
+  body.position.y = (TANK.y0 + TANK.y1) / 2; g.add(body);
+  const top = shadow(new THREE.Mesh(new THREE.SphereGeometry(TANK.r, 72, 24, 0, Math.PI * 2, 0, Math.PI / 2), cream));
+  top.scale.y = 0.38; top.position.y = TANK.y1; g.add(top);
+  const bot = shadow(new THREE.Mesh(new THREE.SphereGeometry(TANK.r, 72, 24, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2), cream));
+  bot.scale.y = 0.3; bot.position.y = TANK.y0; g.add(bot);
+  for (const y of [TANK.y0 + 0.9, TANK.y0 + 0.94]) {
+    const seam = new THREE.Mesh(new THREE.TorusGeometry(TANK.r + 0.004, 0.01, 8, 120), cream);
+    seam.rotation.x = Math.PI / 2; seam.position.y = y; g.add(seam);
+  }
+  // air valve cap on top + small nipple
+  const domeTop = TANK.y1 + TANK.r * 0.38;
+  const cap = shadow(new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.14, 0.1, 32), M.black));
+  cap.position.y = domeTop + 0.03; g.add(cap);
+  const nip = shadow(new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.035, 0.09, 16), M.black));
+  nip.position.set(0.35, TANK.y1 + 0.3, 0.35); g.add(nip);
+  // black skirt stand with four cut-outs
+  const gap = 0.55;
+  for (let k = 0; k < 4; k++) {
+    const seg = shadow(new THREE.Mesh(
+      new THREE.CylinderGeometry(0.72, 0.95, 0.66, 24, 1, true, Math.PI / 2 + gap / 2 + k * Math.PI / 2, Math.PI / 2 - gap),
+      blackDS));
+    seg.position.y = 0.33; g.add(seg);
+  }
+  const rimTop = new THREE.Mesh(new THREE.TorusGeometry(0.73, 0.03, 10, 72), M.black);
+  rimTop.rotation.x = Math.PI / 2; rimTop.position.y = 0.66; g.add(rimTop);
+  const rimBot = shadow(new THREE.Mesh(new THREE.TorusGeometry(0.95, 0.035, 10, 72), M.black));
+  rimBot.rotation.x = Math.PI / 2; rimBot.position.y = 0.035; g.add(rimBot);
+  // orange label wrapped on the shell
+  const c = document.createElement('canvas'); c.width = 512; c.height = 200;
+  const x2 = c.getContext('2d');
+  x2.fillStyle = '#f39a1e'; x2.fillRect(0, 0, 512, 200);
+  x2.fillStyle = '#1a1a1a'; x2.font = 'bold 34px sans-serif'; x2.fillText('PRESSURE TANK', 24, 52);
+  x2.font = '20px sans-serif';
+  ['Pre-charge pressure: see label', 'Max. working pressure: see label', 'Diaphragm type · potable water'].forEach((t, i) => x2.fillText(t, 24, 98 + i * 30));
+  x2.fillStyle = '#ffffff'; x2.fillRect(430, 80, 60, 60);
+  const lt = new THREE.CanvasTexture(c); lt.colorSpace = THREE.SRGBColorSpace;
+  const lab = new THREE.Mesh(new THREE.CylinderGeometry(TANK.r + 0.004, TANK.r + 0.004, 0.42, 48, 1, true, -0.85, 1.1),
+    new THREE.MeshStandardMaterial({ map: lt, roughness: 0.5 }));
+  lab.position.y = TANK.y0 + 1.6; g.add(lab);
+}
+// tank line: header end -> down beside the tank -> in through the skirt cut-out -> up into the tank bottom
+const TANK_LINE_X = -4.05;
+const tankPts = [V(disStart - 0.035, DIS.y, DIS.z), V(TANK_LINE_X, DIS.y, DIS.z), V(TANK_LINE_X, 0.22, DIS.z),
+                 V(TANK.x, 0.22, DIS.z), V(TANK.x, 0.5, DIS.z)];
+makePipe(tankPts, BR, { tint: 0x6fb0ff, flow: () => sim.qTank * KB, density: 12 });
+flange(V(DIS.outX, DIS.y, DIS.z), X, DIS.r);
+
+// branches
+PUMP_X.forEach((x, i) => {
+  makePipe([V(x, SUC.y + SUC.r * 0.7, SUC.z), V(x, H, SUC.z), V(x, H, SUC_NOZ_Z)], BR, { tint: 0xa8e6ff, flow: () => sim.q[i] * KB, density: 14 });
+  flange(V(x, H, SUC_NOZ_Z + 0.035), Z, BR);
+  makePipe([V(x, DIS_NOZ_Y, DIS.z), V(x, DIS.y - DIS.r * 0.7, DIS.z)], BR, { tint: 0x6fb0ff, flow: () => sim.q[i] * KB, density: 14 });
+  flange(V(x, DIS_NOZ_Y + 0.035, DIS.z), Y, BR);
+});
+
+// opaque mains connection stubs beyond inlet / outlet
+function stub(a, b, r) {
+  const d = b.clone().sub(a);
+  const m = shadow(new THREE.Mesh(new THREE.CylinderGeometry(r, r, d.length(), 40), M.flange));
+  m.position.copy(a).add(b).multiplyScalar(0.5);
+  m.quaternion.setFromUnitVectors(Y, d.normalize());
+  scene.add(m);
+}
+stub(V(SUC.inX - 2.2, SUC.y, SUC.z), V(SUC.inX - 0.035, SUC.y, SUC.z), SUC.r);
+stub(V(DIS.outX + 0.035, DIS.y, DIS.z), V(DIS.outX + 2.2, DIS.y, DIS.z), DIS.r);
+
+// pressure gauge on discharge header
+{
+  const g = new THREE.Group();
+  g.position.set(5.0, DIS.y + DIS.r, DIS.z);
+  const stem = shadow(new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.28, 12), M.steel));
+  stem.position.y = 0.14; g.add(stem);
+  const body = shadow(new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.17, 0.08, 40), M.steel));
+  body.rotation.x = Math.PI / 2; body.position.y = 0.42; g.add(body);
+  const face = new THREE.Mesh(new THREE.CircleGeometry(0.145, 40), M.white);
+  face.position.set(0, 0.42, 0.041); g.add(face);
+  const needle = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.12, 0.005), M.red);
+  needle.geometry.translate(0, 0.05, 0);
+  needle.position.set(0, 0.42, 0.046);
+  g.add(needle);
+  g.userData.needle = needle;
+  scene.add(g);
+  var gaugeNeedle = needle;
+}
+
+// labels
+function label(text, pos) {
+  const d = document.createElement('div');
+  d.className = 'label'; d.textContent = text;
+  const o = new CSS2DObject(d); o.position.copy(pos); scene.add(o);
+}
+label('SUCTION IN →', V(SUC.inX - 1.2, SUC.y + 0.5, SUC.z));
+label('DISCHARGE OUT →', V(DIS.outX + 1.1, DIS.y + 0.5, DIS.z));
+label('SUCTION HEADER', V(-5, SUC.y - 0.05, SUC.z + 0.55));
+label('DISCHARGE HEADER', V(4.2, DIS.y + 0.45, DIS.z));
+label('PRESSURE TANK', V(TANK.x, TANK.y1 + 0.75, TANK.z));
+
+// ---------- flowing bubbles (particles), per pipe ----------
+const bubbleMesh = new THREE.InstancedMesh(
+  new THREE.SphereGeometry(0.022, 10, 8),
+  new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xaee6ff, emissiveIntensity: 0.9, roughness: 0.1 }),
+  pipes.reduce((a, p) => a + p.count, 0)
+);
+scene.add(bubbleMesh);
+const bubbles = [];
+pipes.forEach((pp, p) => {
+  for (let i = 0; i < pp.count; i++) {
+    const off = V(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5);
+    bubbles.push({ p, u: Math.random(), off, mag: Math.random() * pp.waterR * 0.65, s: 0.5 + Math.random() * 0.9 });
+  }
+});
+const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _pos = new THREE.Vector3(),
+      _t = new THREE.Vector3(), _o = new THREE.Vector3(), _sc = new THREE.Vector3();
+
+// ---------- UI ----------
+// flow slider = tap opening: 0–10 LPS of demand at the outlet
+const FLOW_MAX = 8;
+{
+  const el = document.getElementById('flow'), out = document.getElementById('fval');
+  const apply = () => {
+    const lps = parseFloat(el.value);
+    sim.demand = lps;
+    out.textContent = lps.toFixed(1);
+    el.style.setProperty('--fill', (lps / FLOW_MAX) * 100 + '%');
+  };
+  el.addEventListener('input', apply);
+  apply();
+}
+
+// ---------- pressure set point gauge (0–5 bar) ----------
+const PMAX = 5, GC = { x: 100, y: 104, r: 78 };
+let setPoint = 4.0;
+const svgNS = 'http://www.w3.org/2000/svg';
+const gpt = (v, r) => { const a = Math.PI * (1 - v / PMAX); return [GC.x + r * Math.cos(a), GC.y - r * Math.sin(a)]; };
+{
+  const cols = ['#2db34a', '#8cc63f', '#f7d117', '#f7941d', '#ed1c24'];
+  const seg = document.getElementById('pseg'), ticks = document.getElementById('pticks');
+  cols.forEach((c, i) => {
+    const [x0, y0] = gpt(i + 0.03, GC.r), [x1, y1] = gpt(i + 0.97, GC.r);
+    const path = document.createElementNS(svgNS, 'path');
+    path.setAttribute('d', `M${x0},${y0} A${GC.r},${GC.r} 0 0 1 ${x1},${y1}`);
+    path.setAttribute('stroke', c); path.setAttribute('stroke-width', '22'); path.setAttribute('fill', 'none');
+    seg.appendChild(path);
+  });
+  for (let v = 0; v <= PMAX; v += 0.5) {
+    const major = Number.isInteger(v);
+    const [x0, y0] = gpt(v, GC.r - 12), [x1, y1] = gpt(v, GC.r - (major ? 19 : 16));
+    const l = document.createElementNS(svgNS, 'line');
+    Object.entries({ x1: x0, y1: y0, x2: x1, y2: y1, stroke: '#17202a', 'stroke-width': major ? 2 : 1 }).forEach(([k, val]) => l.setAttribute(k, val));
+    ticks.appendChild(l);
+    if (major) {
+      const [tx, ty] = gpt(v, GC.r - 29);
+      const t = document.createElementNS(svgNS, 'text');
+      t.setAttribute('class', 'tick'); t.setAttribute('x', tx); t.setAttribute('y', ty); t.textContent = v;
+      ticks.appendChild(t);
+    }
+  }
+}
+const needleEl = document.getElementById('pneedle'), actEl = document.getElementById('pact');
+function setSetPoint(v) {
+  setPoint = Math.round(Math.min(PMAX, Math.max(0, v)) * 10) / 10;
+  document.getElementById('psp').textContent = setPoint.toFixed(1);
+  needleEl.setAttribute('transform', `rotate(${-90 + (setPoint / PMAX) * 180} ${GC.x} ${GC.y})`);
+}
+setSetPoint(setPoint);
+document.getElementById('pminus').addEventListener('click', () => setSetPoint(setPoint - 0.1));
+document.getElementById('pplus').addEventListener('click', () => setSetPoint(setPoint + 0.1));
+{
+  const svg = document.getElementById('pgauge');
+  let drag = false;
+  const fromEvent = (e) => {
+    const pt = new DOMPoint(e.clientX, e.clientY).matrixTransform(svg.getScreenCTM().inverse());
+    let a = Math.atan2(GC.y - pt.y, pt.x - GC.x);
+    if (a < 0) a = pt.x < GC.x ? Math.PI : 0;
+    setSetPoint(PMAX * (1 - a / Math.PI));
+  };
+  svg.addEventListener('pointerdown', (e) => { drag = true; svg.setPointerCapture(e.pointerId); fromEvent(e); });
+  svg.addEventListener('pointermove', (e) => { if (drag) fromEvent(e); });
+  svg.addEventListener('pointerup', () => drag = false);
+  svg.addEventListener('pointercancel', () => drag = false);
+}
+function updatePressureUI() {
+  const P = Math.min(PMAX, sim.P);
+  document.getElementById('pactv').textContent = sim.P.toFixed(2) + ' bar';
+  actEl.setAttribute('transform', `rotate(${-90 + (P / PMAX) * 180} ${GC.x} ${GC.y})`);
+  const cap = 3 * pumpLPS(setPoint, 1);
+  const w = document.getElementById('capwarn');
+  const over = sim.mode.every((m) => m !== 'off') && sim.speed.every((v) => v >= 0.999) && sim.P < setPoint - 0.15;
+  w.hidden = !over;
+  if (over) w.textContent = `⚠ Demand above capacity: max at ${setPoint.toFixed(1)} bar is ${cap.toFixed(2)} LPS (${Math.round(cap * 3600)} LPH)`;
+  document.getElementById('flowact').innerHTML = `Delivered: <b>${sim.qOut.toFixed(2)} LPS · ${Math.round(sim.qOut * 3600)} LPH</b>`;
+}
+
+// ---------- loop ----------
+const clock = new THREE.Clock();
+
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+// air cushion of the diaphragm tank: dP/dV (bar per litre). Pre-charge ~70 % of set point.
+function compliance(P) {
+  const pre = 0.7 * setPoint;
+  return P > pre ? (P + 1) ** 2 / ((pre + 1) * TANK_L) : 0.25;
+}
+// one controller + hydraulics step (h seconds)
+function simStep(h) {
+  const SP = setPoint, e = SP - sim.P;
+  sim.lock = Math.max(0, sim.lock - h);
+  if (sim.lead < 0) {
+    // all pumps off: start pump 1 on the VFD when pressure falls 0.1 bar below set point
+    if (sim.P < SP - 0.1) { sim.lead = 0; sim.mode[0] = 'vfd'; sim.speed[0] = MIN_SPD; sim.upT = sim.downT = 0; }
+  } else {
+    const L = sim.lead;
+    // PI pressure control on the pump that has the VFD (ramp-limited)
+    const ds = clamp(KI * e - KP * sim.dP, -RAMP_DN, RAMP_UP);
+    sim.speed[L] = clamp(sim.speed[L] + ds * h, MIN_SPD, 1);
+    // stage up: VFD pump at 100 % and pressure still low -> it goes direct, next pump takes the VFD
+    sim.upT = (sim.speed[L] >= 0.999 && e > 0.1 && sim.dP <= 0.002) ? sim.upT + h : 0;
+    if (sim.lock === 0 && sim.upT > (e > 0.6 ? 0.5 : 1.5) && L < 2) {
+      sim.lock = LOCK;
+      sim.mode[L] = 'dol'; sim.speed[L] = 1;
+      sim.lead = L + 1; sim.mode[L + 1] = 'vfd'; sim.speed[L + 1] = MIN_SPD; sim.upT = 0;
+    }
+    // stage down: VFD pump at minimum and pressure above set point -> stop it, previous pump takes the VFD
+    const atMin = sim.speed[sim.lead] <= MIN_SPD + 0.001;
+    sim.downT = (atMin && e < -0.05) ? sim.downT + h : 0;
+    // no-flow detection: drive at minimum yet pressure holds at set point -> nobody is drawing water
+    sim.noFlowT = (atMin && e < 0.05) ? sim.noFlowT + h : 0;
+    const high = (sim.P > SP + 0.4 && atMin) || sim.P > SP + 1.0;   // over-pressure: shed faster
+    const L2 = sim.lead;
+    if (sim.lock > (high ? LOCK - 0.8 : 0)) { /* wait after a staging change */ }
+    else if (L2 > 0 && (sim.downT > 1.5 || high)) {
+      sim.lock = LOCK;
+      sim.mode[L2] = 'off'; sim.speed[L2] = 0;
+      sim.lead = L2 - 1; sim.mode[L2 - 1] = 'vfd'; sim.downT = 0;
+    } else if (L2 === 0 && (sim.noFlowT > 2 || high)) {
+      // last pump: tank is charged above set point, nowhere for water to go -> stop
+      sim.mode[0] = 'off'; sim.speed[0] = 0; sim.lead = -1; sim.downT = 0; sim.noFlowT = 0;
+    }
+  }
+  sim.qPumps = 0;
+  for (let i = 0; i < 3; i++) { sim.q[i] = sim.mode[i] === 'off' ? 0 : pumpLPS(sim.P, sim.speed[i]); sim.qPumps += sim.q[i]; }
+  // tap behaves like an orifice: slider = flow it draws at the set pressure, actual flow ∝ √P
+  sim.qOut = sim.demand * Math.sqrt(sim.P / Math.max(0.1, setPoint));
+  const net = sim.qPumps - sim.qOut;                 // LPS into (+) or out of (-) the tank
+  sim.dP = compliance(sim.P) * net;
+  sim.P = Math.max(0, sim.P + sim.dP * h);
+  sim.qTank = sim.P > 0.7 * setPoint || net > 0 ? net : 0;
+}
+let uiTimer = 0;
+function updateDisplays() {
+  pumps.forEach((p, i) => {
+    const m = sim.mode[i];
+    p.on = m !== 'off';
+    const pct = Math.round((p.on ? sim.speed[i] : p.rpm) * 100);
+    const cls = p.on ? 'run' : 'stop', txt = p.on ? 'RUNNING' : 'STOPPED';
+    p.ui.st.className = 'st ' + cls;
+    p.ui.st.textContent = txt;
+    p.ui.pct.textContent = pct + '%';
+    p.ui.root.classList.toggle('off', !p.on);
+    p.ui.root.classList.toggle('dol', m === 'dol');
+    p.ui.mode.textContent = m === 'vfd' ? 'VFD' : m === 'dol' ? 'DIRECT' : 'OFF';
+    p.ledMat.color.set(p.on ? 0x3ddc84 : 0xff3b30);
+    p.ledMat.emissive.set(p.on ? 0x3ddc84 : 0xff3b30);
+  });
+}
+function animate() {
+  requestAnimationFrame(animate);
+  const dt = Math.min(clock.getDelta(), 0.05);
+
+  // run the controller/hydraulics in small fixed steps
+  for (let k = 0, n = Math.ceil(dt / 0.01); k < n; k++) simStep(dt / n);
+
+  pumps.forEach((p, i) => {
+    p.rpm += (sim.speed[i] - p.rpm) * Math.min(1, dt * 3);
+    const w = p.rpm * dt * 22;
+    for (const imp of p.impellers) imp.rotation.z += w;
+    p.fan.rotation.z += w;
+  });
+  uiTimer -= dt;
+  if (uiTimer <= 0) { uiTimer = 0.12; updateDisplays(); updatePressureUI(); }
+
+  for (const pp of pipes) pp.tex.offset.x -= (pp.flow() * dt) / TILE;
+
+  bubbles.forEach((b, i) => {
+    const pp = pipes[b.p];
+    const v = pp.flow();
+    b.u = (((b.u + (v * dt) / pp.len) % 1) + 1) % 1;
+    pp.curve.getPointAt(b.u, _pos);
+    pp.curve.getTangentAt(b.u, _t);
+    _o.copy(b.off).addScaledVector(_t, -b.off.dot(_t)).normalize().multiplyScalar(b.mag);
+    _pos.add(_o);
+    const vis = Math.abs(v) > 0.01 ? b.s : 0;
+    _sc.set(vis, vis, vis);
+    _m.compose(_pos, _q, _sc);
+    bubbleMesh.setMatrixAt(i, _m);
+  });
+  bubbleMesh.instanceMatrix.needsUpdate = true;
+
+  gaugeNeedle.rotation.z = 2.2 - (Math.min(PMAX, sim.P) / PMAX) * 4.4;
+
+  controls.update();
+  renderer.render(scene, camera);
+  labelRenderer.render(scene, camera);
+}
+animate();
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+  labelRenderer.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>
