@@ -88,6 +88,34 @@
   .story .s-ctl .s-sp { flex: 1; }
   .story .s-ctl button { padding: 9px 14px; border-radius: 10px; border: 2px solid #c3ccd6; background: #e4e9ef; color: #17202a; font: 700 15px system-ui, sans-serif; cursor: pointer; }
   .story .s-ctl button:hover { border-color: #0288d1; background: #d8e6f2; }
+  .story { --c-vfd: #2a78d6; --c-fix: #eb6834; --c-save: #1baf7a; --ink-2: #52514e; --grid: #e1e5ea; }
+  .story.wide { width: min(980px, calc(100vw - 32px)); max-height: calc(100vh - 32px); overflow-y: auto; }
+  #panel.hide { display: none; }
+  .s-chart { margin-top: 12px; }
+  .s-chart svg { width: 100%; height: auto; display: block; }
+  .c-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px; font: 600 14px system-ui, sans-serif; color: #17202a; }
+  .c-legend .sw { display: inline-block; vertical-align: middle; margin-right: 6px; }
+  .c-legend .sw.ln { width: 22px; height: 3px; border-radius: 2px; background: var(--c); }
+  .c-legend .sw.ar { width: 16px; height: 12px; border-radius: 3px; background: color-mix(in srgb, var(--c-save) 35%, transparent); border: 1px solid var(--c-save); }
+  .c-tbtn { margin-left: auto; padding: 5px 10px; border-radius: 8px; border: 2px solid #c3ccd6; background: #e4e9ef; color: #17202a; font: 700 13px system-ui, sans-serif; cursor: pointer; }
+  .c-sub { margin: 10px 0 2px; font: 700 13px system-ui, sans-serif; color: var(--ink-2); }
+  .c-wrap { position: relative; }
+  .c-tip { position: absolute; top: 8px; pointer-events: none; padding: 8px 10px; border-radius: 8px; background: #17202a; color: #fff; font: 600 13px/1.45 system-ui, sans-serif; white-space: nowrap; font-variant-numeric: tabular-nums; box-shadow: 0 6px 16px rgba(0,0,0,.3); }
+  .c-tip .k { display: inline-block; width: 10px; height: 3px; border-radius: 2px; margin-right: 6px; vertical-align: middle; }
+  .c-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 12px; }
+  .c-stats div { padding: 10px 12px; border-radius: 10px; background: #e9edf2; }
+  .c-stats small { display: block; font: 700 12px system-ui, sans-serif; color: var(--ink-2); letter-spacing: .03em; }
+  .c-stats b { display: block; font: 800 24px system-ui, sans-serif; color: #17202a; font-variant-numeric: tabular-nums; }
+  .c-stats span { font: 600 12px system-ui, sans-serif; color: var(--ink-2); }
+  .c-note { margin-top: 10px; font: 500 13px/1.45 system-ui, sans-serif; color: var(--ink-2); }
+  .c-table { margin-top: 10px; max-height: 220px; overflow: auto; border-radius: 10px; border: 1px solid #d5dde5; }
+  .c-table table { width: 100%; border-collapse: collapse; font: 500 13px system-ui, sans-serif; font-variant-numeric: tabular-nums; }
+  .c-table th, .c-table td { padding: 5px 10px; text-align: right; border-bottom: 1px solid #e1e5ea; }
+  .c-table th:first-child, .c-table td:first-child { text-align: left; }
+  .c-table th { position: sticky; top: 0; background: #e9edf2; font-weight: 700; }
+  .ax { font: 600 11px system-ui, sans-serif; fill: #52514e; }
+  .dl { font: 800 13px system-ui, sans-serif; fill: #17202a; }
+  @media (max-width: 640px) { .c-stats { grid-template-columns: 1fr; } }
   #panel.locked .press { pointer-events: none; }
   #panel.locked .press::before { content: "Story mode is driving the controls"; display: block; margin: -6px 0 10px; font: 700 15px system-ui, sans-serif; color: #0277bd; text-align: center; }
   .hint { position: fixed; bottom: 12px; left: 16px; color: var(--muted); font-size: 12px; z-index: 5; }
@@ -180,6 +208,24 @@
   <h2 id="sTitle"></h2>
   <p id="sText"></p>
   <div id="sLive" class="s-live"></div>
+  <div id="sChart" class="s-chart" hidden>
+    <div class="c-legend">
+      <span><i class="sw ln" style="--c: var(--c-vfd)"></i>VFD: speed follows demand</span>
+      <span><i class="sw ln" style="--c: var(--c-fix)"></i>No VFD: whole pumps at 100%</span>
+      <span><i class="sw ar"></i>Saving (idealised)</span>
+      <button id="cTableBtn" class="c-tbtn">Show table</button>
+    </div>
+    <div class="c-sub">Water demand over the day (LPS)</div>
+    <svg id="cDemand" viewBox="0 0 720 84" role="img" aria-label="Water demand over 24 hours"></svg>
+    <div class="c-sub">Pump utilisation (% of one pump at full power)</div>
+    <div class="c-wrap">
+      <svg id="cMain" viewBox="0 0 720 296" role="img" aria-label="Pump utilisation over 24 hours, VFD versus no VFD"></svg>
+      <div id="cTip" class="c-tip" hidden></div>
+    </div>
+    <div id="cTable" class="c-table" hidden></div>
+    <div class="c-stats" id="cStats"></div>
+    <div class="c-note">Idealised comparison: VFD utilisation follows demand exactly; without a VFD every pump that is needed counts at 100%. It is not a measured energy result. In the live simulation at 4 bar the VFD pump has to stay at 90–100% speed near its shut-off head, so its real saving is much smaller.</div>
+  </div>
   <div class="s-prog"><i id="sProg"></i></div>
   <div class="s-ctl">
     <button id="sPrev" title="Previous step">◀ Prev</button>
@@ -871,9 +917,12 @@ const STEPS = [
   { chap: 'NO-VFD OPERATION', view: 'tank', demand: 0, until: () => off(0) && off(1) && off(2), after: 4, max: 100,
     title: 'Tap closes: pumps stop one by one at 4.3 bar',
     text: 'The surplus charges the tank until the pressure hits the 4.3 bar cut-out. The last pump started stops first (P2, then P1). The line rests above the set point and will drift back down before the next start.' },
-  { chap: 'SUMMARY', view: 'overview', min: 1e9,
+  { chap: 'SUMMARY', view: 'overview', min: 24,
     title: 'VFD vs. no VFD',
-    text: 'VFD: steady 4.0 bar at any demand, soft starts, pumps slow down instead of cycling, and less energy at part load. No VFD: pressure swings between about 3.6 and 4.3 bar, every start is a full-speed hard start, and part-load demand causes overshoot and on/off cycling. Press Exit to take over the controls, or Prev to replay a step.' },
+    text: 'VFD: steady 4.0 bar at any demand, soft starts, pumps slow down instead of cycling, and less energy at part load. No VFD: pressure swings between about 3.6 and 4.3 bar, every start is a full-speed hard start, and part-load demand causes overshoot and on/off cycling. Next: how much pump capacity each approach uses over a whole day.' },
+  { chap: 'ENERGY', view: 'overview', chart: true, min: 1e9,
+    title: 'A day of water use: VFD vs. no VFD',
+    text: 'A typical day: almost nothing at night, a morning peak, a moderate midday and an evening peak. With a VFD, pump utilisation follows the demand smoothly from 0 to 300%. Without one, the set can only run whole pumps, so it jumps in steps of 100%, 200% and 300%. The green area between the curves is the capacity, and so the energy, the VFD idealises away. Press Exit to take over the controls, or Prev to replay a step.' },
 ];
 
 const story = { active: false, paused: false, speed: 2, i: 0, t: 0, ready: -1, cam: null };
@@ -898,7 +947,12 @@ function enterStep(i) {
   if (st.view) flyTo(st.view);
   const chap = $('sChap');
   chap.textContent = st.chap;
-  chap.className = 's-chap' + (st.chap.startsWith('NO') ? ' fixed' : st.chap === 'SUMMARY' ? ' sum' : '');
+  chap.className = 's-chap' + (st.chap.startsWith('NO') ? ' fixed' : (st.chap === 'SUMMARY' || st.chap === 'ENERGY') ? ' sum' : '');
+  $('story').classList.toggle('wide', !!st.chart);
+  $('sChart').hidden = !st.chart;
+  $('sLive').hidden = !!st.chart;
+  $('panel').classList.toggle('hide', !!st.chart);
+  if (st.chart) drawEnergyChart();
   $('sStep').textContent = `${story.i + 1} / ${STEPS.length}`;
   $('sTitle').textContent = st.title;
   $('sText').textContent = st.text;
@@ -945,6 +999,123 @@ function updateStoryLive() {
   }).join(' · ');
   $('sLive').innerHTML = `Pressure <b>${sim.P.toFixed(2)} bar</b> · Tap <b>${sim.qOut.toFixed(2)} LPS</b> · ${pumpTxt}`;
 }
+// ---------- idealised daily utilisation chart (end of story) ----------
+// daily water-use profile, in "pumps' worth" of flow at each hour 0..24 (peaks just under the 3-pump limit)
+const DAY_PUMPS = [0.05, 0.03, 0.02, 0.02, 0.06, 0.4, 1.5, 2.6, 2.3, 1.6, 1.1, 0.95, 1.15, 1.0, 0.75, 0.7, 0.9, 1.4, 2.3, 2.8, 2.0, 1.2, 0.6, 0.18, 0.05];
+function idealDay(sp) {
+  const cap = pumpLPS(sp, 1);                       // one pump at 100 % at the set pressure (LPS)
+  const pts = [];
+  let n = 0;                                        // pumps running without a VFD (with a small switching hysteresis)
+  for (let m = 0; m <= 1440; m += 5) {
+    const hr = m / 60, i = Math.min(23, Math.floor(hr)), f = hr - i;
+    let u = DAY_PUMPS[i] + (DAY_PUMPS[i + 1] - DAY_PUMPS[i]) * (1 - Math.cos(f * Math.PI)) / 2;
+    const r = Math.sin(Math.floor(m / 10) * 12.9898 + 78.233) * 43758.5453;   // taps opening/closing
+    u = clamp(u * (0.88 + 0.24 * (r - Math.floor(r))), 0, 3);
+    const vfd = u * 100;
+    if (u > n) n = Math.ceil(u - 1e-9);
+    else if (u < n - 1 - 0.12) n = Math.ceil(u - 1e-9);
+    if (u < 0.015) n = 0;
+    const fixed = n * 100;
+    pts.push({ m, dem: u * cap, vfd, fixed });
+  }
+  return { cap, pts };
+}
+function drawEnergyChart() {
+  const sp = setPoint, { cap, pts } = idealDay(sp);
+  const W = 720, L = 64, R = 16, X = (m) => L + (m / 1440) * (W - L - R);
+  const hhmm = (m) => String(Math.floor(m / 60) % 24).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0');
+  const xTicks = [0, 180, 360, 540, 720, 900, 1080, 1260, 1440];
+  // demand strip
+  {
+    const T = 6, B = 64, maxD = Math.max(...pts.map((p) => p.dem)) * 1.1, Y = (v) => B - (v / maxD) * (B - T);
+    const line = pts.map((p, i) => `${i ? 'L' : 'M'}${X(p.m).toFixed(1)},${Y(p.dem).toFixed(1)}`).join('');
+    $('cDemand').innerHTML =
+      `<line x1="${L}" x2="${W - R}" y1="${B}" y2="${B}" stroke="#c3ccd6"/>` +
+      `<path d="${line}L${X(1440)},${B}L${X(0)},${B}Z" fill="#8a97a5" fill-opacity=".28"/>` +
+      `<path d="${line}" fill="none" stroke="#6b7885" stroke-width="2" stroke-linejoin="round"/>` +
+      `<text class="ax" x="${L - 8}" y="${Y(maxD / 1.1) + 4}" text-anchor="end">${(maxD / 1.1).toFixed(1)}</text>` +
+      `<text class="ax" x="${L - 8}" y="${B + 4}" text-anchor="end">0</text>` +
+      xTicks.map((m) => `<text class="ax" x="${X(m)}" y="${B + 16}" text-anchor="middle">${hhmm(m)}</text>`).join('');
+  }
+  // main chart
+  const T = 26, B = 262, Y = (v) => B - (v / 300) * (B - T);
+  const vfdPath = pts.map((p, i) => `${i ? 'L' : 'M'}${X(p.m).toFixed(1)},${Y(p.vfd).toFixed(1)}`).join('');
+  let fixPath = '';
+  pts.forEach((p, i) => {
+    const x = X(p.m).toFixed(1), y = Y(p.fixed).toFixed(1);
+    fixPath += i ? `H${x}V${y}` : `M${x},${y}`;
+  });
+  // saving area: between the stepped line (top) and the VFD line (bottom)
+  let top = '';
+  pts.forEach((p, i) => { const x = X(p.m).toFixed(1), y = Y(p.fixed).toFixed(1); top += i ? `H${x}V${y}` : `M${x},${y}`; });
+  const bottom = pts.slice().reverse().map((p) => `L${X(p.m).toFixed(1)},${Y(p.vfd).toFixed(1)}`).join('');
+  const grid = [0, 100, 200, 300].map((v) =>
+    `<line x1="${L}" x2="${W - R}" y1="${Y(v)}" y2="${Y(v)}" stroke="${v ? 'var(--grid)' : '#c3ccd6'}"/>` +
+    `<text class="ax" x="${L - 8}" y="${Y(v) + 4}" text-anchor="end">${v}%</text>`).join('');
+  // direct labels at the evening peak and the largest gap
+  const at = (m) => pts[Math.round(m / 5)];
+  const plateau = pts.find((p) => p.fixed === 300) || pts[0];        // first 300 % step
+  const vl = at(870), sv = at(150);
+  $('cMain').innerHTML = grid +
+    xTicks.map((m) => `<text class="ax" x="${X(m)}" y="${B + 18}" text-anchor="middle">${hhmm(m)}</text>`).join('') +
+    `<path d="${top}${bottom}Z" fill="var(--c-save)" fill-opacity=".3"/>` +
+    `<path d="${fixPath}" fill="none" stroke="var(--c-fix)" stroke-width="2" stroke-linejoin="round"/>` +
+    `<path d="${vfdPath}" fill="none" stroke="var(--c-vfd)" stroke-width="2" stroke-linejoin="round"/>` +
+    `<text class="dl" x="${X(plateau.m)}" y="${Y(300) - 8}">No VFD</text>` +
+    `<text class="dl" x="${X(vl.m)}" y="${Y(vl.vfd) + 22}" text-anchor="middle">VFD</text>` +
+    `<text class="dl" x="${X(sv.m)}" y="${Y((sv.fixed + sv.vfd) / 2) + 4}" text-anchor="middle">Saving</text>` +
+    `<line id="cCross" x1="0" x2="0" y1="${T}" y2="${B}" stroke="#17202a" stroke-width="1" visibility="hidden"/>` +
+    `<circle id="cDotF" r="5" fill="var(--c-fix)" stroke="#f5f7fa" stroke-width="2" visibility="hidden"/>` +
+    `<circle id="cDotV" r="5" fill="var(--c-vfd)" stroke="#f5f7fa" stroke-width="2" visibility="hidden"/>` +
+    `<rect id="cHit" x="${L}" y="0" width="${W - L - R}" height="${B + 4}" fill="transparent"/>`;
+
+  // totals (5-minute samples -> pump-hours)
+  const fixH = pts.slice(1).reduce((a, p) => a + p.fixed / 100 * 5 / 60, 0);
+  const vfdH = pts.slice(1).reduce((a, p) => a + p.vfd / 100 * 5 / 60, 0);
+  const save = fixH - vfdH;
+  $('cStats').innerHTML =
+    `<div><small>NO VFD</small><b>${fixH.toFixed(1)} pump-h</b><span>≈ ${(fixH * PUMP_KW_RATED).toFixed(1)} kWh at 1.1 kW</span></div>` +
+    `<div><small>VFD</small><b>${vfdH.toFixed(1)} pump-h</b><span>≈ ${(vfdH * PUMP_KW_RATED).toFixed(1)} kWh at 1.1 kW</span></div>` +
+    `<div><small>SAVING (IDEALISED)</small><b>${(save / fixH * 100).toFixed(0)}%</b><span>${save.toFixed(1)} pump-h ≈ ${(save * PUMP_KW_RATED).toFixed(1)} kWh per day</span></div>`;
+
+  // hourly table view
+  let rows = '';
+  for (let h = 0; h < 24; h++) {
+    const hs = pts.filter((p) => p.m > h * 60 && p.m <= (h + 1) * 60);
+    const avg = (k) => hs.reduce((a, p) => a + p[k], 0) / hs.length;
+    rows += `<tr><td>${hhmm(h * 60)}–${hhmm((h + 1) * 60)}</td><td>${avg('dem').toFixed(2)}</td><td>${avg('fixed').toFixed(0)}%</td><td>${avg('vfd').toFixed(0)}%</td><td>${(avg('fixed') - avg('vfd')).toFixed(0)}%</td></tr>`;
+  }
+  $('cTable').innerHTML = `<table><thead><tr><th>Hour</th><th>Demand (LPS)</th><th>No VFD</th><th>VFD</th><th>Saving</th></tr></thead><tbody>${rows}</tbody></table>`;
+
+  // hover: crosshair + tooltip
+  const svg = $('cMain'), tip = $('cTip');
+  const show = (e) => {
+    const pt = new DOMPoint(e.clientX, e.clientY).matrixTransform(svg.getScreenCTM().inverse());
+    const m = clamp(((pt.x - L) / (W - L - R)) * 1440, 0, 1440);
+    const p = pts[Math.round(m / 5)];
+    const x = X(p.m);
+    for (const [id, y] of [['cCross', null], ['cDotF', Y(p.fixed)], ['cDotV', Y(p.vfd)]]) {
+      const el = $(id); el.setAttribute('visibility', 'visible');
+      if (y === null) { el.setAttribute('x1', x); el.setAttribute('x2', x); } else { el.setAttribute('cx', x); el.setAttribute('cy', y); }
+    }
+    tip.hidden = false;
+    tip.innerHTML = `<b>${hhmm(p.m)}</b> · demand ${p.dem.toFixed(2)} LPS<br>` +
+      `<span class="k" style="background:var(--c-fix)"></span>No VFD ${p.fixed.toFixed(0)}%<br>` +
+      `<span class="k" style="background:var(--c-vfd)"></span>VFD ${p.vfd.toFixed(0)}%<br>` +
+      `<span class="k" style="background:var(--c-save)"></span>Saving ${(p.fixed - p.vfd).toFixed(0)}%`;
+    const box = svg.getBoundingClientRect(), px = (x / W) * box.width;
+    tip.style.left = (px > box.width * 0.6 ? px - tip.offsetWidth - 14 : px + 14) + 'px';
+  };
+  const hide = () => { tip.hidden = true; ['cCross', 'cDotF', 'cDotV'].forEach((id) => $(id).setAttribute('visibility', 'hidden')); };
+  $('cHit').addEventListener('pointermove', show);
+  $('cHit').addEventListener('pointerleave', hide);
+}
+const PUMP_KW_RATED = 1.1;
+$('cTableBtn').addEventListener('click', () => {
+  const t = $('cTable'); t.hidden = !t.hidden;
+  $('cTableBtn').textContent = t.hidden ? 'Show table' : 'Hide table';
+});
+
 function startStory() {
   story.active = true; story.paused = false;
   $('story').hidden = false; $('storyBtn').hidden = true;
@@ -955,7 +1126,8 @@ function startStory() {
 function exitStory() {
   story.active = false; story.cam = null;
   $('story').hidden = true; $('storyBtn').hidden = false;
-  $('panel').classList.remove('locked');
+  $('story').classList.remove('wide');
+  $('panel').classList.remove('locked', 'hide');
 }
 $('storyBtn').addEventListener('click', startStory);
 $('sExit').addEventListener('click', exitStory);
