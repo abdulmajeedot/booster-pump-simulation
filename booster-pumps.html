@@ -45,6 +45,11 @@
   .press button:active { transform: translateY(1px); }
   .press .act { margin-top: 12px; font-size: 22px; color: #5a6875; text-align: center; font-variant-numeric: tabular-nums; }
   .press .act b { color: #0277bd; }
+  .press .modesw { display: flex; margin-bottom: 16px; border: 2px solid #c3ccd6; border-radius: 14px; overflow: hidden; }
+  .press .modesw button { flex: 1; width: auto; height: 56px; border: 0; border-radius: 0; background: #e4e9ef; color: #5a6875; font-size: 22px; font-weight: 800; letter-spacing: .06em; }
+  .press .modesw button + button { border-left: 2px solid #c3ccd6; }
+  .press .modesw button.active { background: #0288d1; color: #fff; }
+  .press .modesw button:hover:not(.active) { background: #d8e6f2; }
   .press .warn { margin-top: 10px; padding: 8px 12px; border-radius: 10px; background: #fff3e0; border: 2px solid #f7941d; color: #8a4b00; font-size: 18px; font-weight: 700; text-align: center; }
   .flow { margin-top: 18px; padding-top: 16px; border-top: 2px solid #d5dde5; }
   .press .flow .ttl .fv { font-size: 40px; font-weight: 800; color: #17202a; font-variant-numeric: tabular-nums; }
@@ -104,6 +109,10 @@
 
 <div id="panel">
   <div class="press">
+    <div class="modesw" role="group" aria-label="Control mode">
+      <button data-c="vfd" class="active">VFD</button>
+      <button data-c="fixed">NO VFD</button>
+    </div>
     <div class="ttl"><span>Pressure set point</span></div>
     <svg id="pgauge" viewBox="0 0 200 118" aria-label="Pressure set point gauge">
       <g id="pseg"></g>
@@ -534,11 +543,12 @@ function pumpLPS(P, n) {
   return n * q100((P * M_PER_BAR) / (n * n)) / 3600;
 }
 const KH = 0.26, KB = 0.46;     // animation speed (world units/s) per LPS: headers / branches
-const TANK_L = 80;              // pressure-tank volume (litres)
+const TANK_DRAW_L = 50;         // water the pressure tank can give: from set pressure down to empty (litres)
 const MIN_SPD = 0.10, RAMP_UP = 0.15, RAMP_DN = 0.3, KI = 0.6, KP = 2.5, LOCK = 2.5;
 const sim = {
   P: 4.0, dP: 0, demand: 0, qOut: 0, qTank: 0, qPumps: 0,
   q: [0, 0, 0], speed: [0, 0, 0], mode: ['off', 'off', 'off'], lead: -1, upT: 0, downT: 0, noFlowT: 0, lock: 0,
+  ctrl: 'vfd',                  // 'vfd' = cascade with one VFD, 'fixed' = no VFD, pumps 0 % or 100 %
 };
 
 // suction header (inlet on the left, capped on the right)
@@ -678,6 +688,12 @@ const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _pos = new THREE.Ve
       _t = new THREE.Vector3(), _o = new THREE.Vector3(), _sc = new THREE.Vector3();
 
 // ---------- UI ----------
+// control mode switch: VFD cascade / no VFD (on-off)
+document.querySelectorAll('.modesw button').forEach((b) => b.addEventListener('click', () => {
+  document.querySelectorAll('.modesw button').forEach((x) => x.classList.toggle('active', x === b));
+  setControlMode(b.dataset.c);
+}));
+
 // flow slider = tap opening: 0–10 LPS of demand at the outlet
 const FLOW_MAX = 8;
 {
@@ -761,15 +777,39 @@ const clock = new THREE.Clock();
 
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 // air cushion of the diaphragm tank: dP/dV (bar per litre). Pre-charge ~70 % of set point.
+// Tank total volume is sized so it holds exactly TANK_DRAW_L of water at the set pressure (Boyle's law).
 function compliance(P) {
   const pre = 0.7 * setPoint;
-  return P > pre ? (P + 1) ** 2 / ((pre + 1) * TANK_L) : 0.25;
+  const vTank = TANK_DRAW_L / Math.max(0.02, 1 - (pre + 1) / (setPoint + 1));
+  return P > pre ? (P + 1) ** 2 / ((pre + 1) * vTank) : 0.25;
+}
+// No-VFD control: pressure-switch cascade, pumps are either off or 100 %
+function fixedStep(h, SP) {
+  const n = sim.mode.filter((m) => m !== 'off').length;      // pumps run in order P1, P2, P3
+  const cutOut = Math.min(SP + 0.3, 4.8);                    // stop level (pump shut-off is ~4.9 bar)
+  const start = (i) => { sim.mode[i] = 'dol'; sim.speed[i] = 1; sim.lock = LOCK; sim.upT = 0; };
+  const stop = (i) => { sim.mode[i] = 'off'; sim.speed[i] = 0; sim.lock = LOCK; sim.upT = 0; };
+  sim.upT = (n > 0 && n < 3 && sim.P < SP - 0.4 && sim.dP <= 0.002) ? sim.upT + h : 0;
+  if (sim.lock > 0) return;
+  if (n === 0 && sim.P < SP - 0.1) start(0);                 // cut-in
+  else if (n > 0 && sim.P >= cutOut) stop(n - 1);            // cut-out: last started stops first
+  else if (sim.upT > 1.5) start(n);                          // still falling: add next pump
+}
+function setControlMode(c) {
+  sim.ctrl = c;
+  const on = [0, 1, 2].filter((i) => sim.mode[i] !== 'off');
+  on.forEach((i) => { sim.mode[i] = 'dol'; sim.speed[i] = 1; });
+  sim.lead = -1;
+  if (c === 'vfd' && on.length) { sim.lead = on[on.length - 1]; sim.mode[sim.lead] = 'vfd'; }
+  sim.upT = sim.downT = sim.noFlowT = 0;
+  sim.lock = 1;
 }
 // one controller + hydraulics step (h seconds)
 function simStep(h) {
   const SP = setPoint, e = SP - sim.P;
   sim.lock = Math.max(0, sim.lock - h);
-  if (sim.lead < 0) {
+  if (sim.ctrl === 'fixed') fixedStep(h, SP);
+  else if (sim.lead < 0) {
     // all pumps off: start pump 1 on the VFD when pressure falls 0.1 bar below set point
     if (sim.P < SP - 0.1) { sim.lead = 0; sim.mode[0] = 'vfd'; sim.speed[0] = MIN_SPD; sim.upT = sim.downT = 0; }
   } else {
